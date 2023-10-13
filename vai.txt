@@ -1,5 +1,229 @@
-subscription-manager repos --list-enabled
+#!/bin/python3.6
+#import pyodbc
+import pandas as pd
+import pymysql
+from datetime import datetime
+from pytz import timezone
+from datetime import datetime, timedelta
 
-curl http://svlp-spacewk-02.stj.gov.br/pub/RHN-ORG-TRUSTED-SSL-CERT -o /usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT
-#
-rhnreg_ks --serverUrl=http://svlp-spacewk-02.stj.gov.br/XMLRPC --sslCACert=/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT --activationkey=1-ol8 --force
+from flask import Flask, request
+import json, requests, re
+#import pymysql, os, subprocess, sys, time, sqlalchemy, urllib3, urllib.parse, json, requests, pandas as pd
+#from sqlalchemy import MetaData
+import urllib3, urllib.parse
+#from multiprocessing import Process
+#from threading import Thread
+#from Citsmart import *
+urllib3.disable_warnings()
+
+app = Flask(__name__)
+
+ack = None
+messages = None
+
+## mensagem Hello Word
+@app.route("/noc", methods=['POST'])
+def noc():
+    response = request.get_json()
+    exec(open("./modulos/test.py").read())
+    return "Hello Word!"
+
+# Rota do aplicativo vindo do Citsmart
+@app.route("/glpi", methods=['POST'])
+def glpi():
+    response = request.get_json()
+    print(response)
+    if response['sections'][0]['facts'][0]['name'] == 'Event time':
+        print("Evento de problema")
+        hostname = response['sections'][0]['activitySubtitle']
+        iphost = response['sections'][0]['ipHost']
+        eventName = response['sections'][0]['facts'][0]['name']
+        data_real = response['sections'][0]['facts'][0]['value']
+        #print(data_real)
+        #telefone = response['sections'][0]['facts'][0]['telefone']
+        idevento = response['sections'][0]['facts'][0]['idevento']
+        severidade = response['sections'][0]['facts'][1]['value']
+        potentialAction = response['potentialAction'][0]['targets'][0]['uri']
+        titulo = hostname
+        descricao = "Problema no Zabbix"
+        #eventname = "Telefonia"
+        #ihora = "22h"
+        #data_real = "06/04/2022"
+        #hostname = "CITDF1SRV025"
+        #severidade = "Alta"
+        #headers = {
+        #    'Content-Type': 'application/json',
+        #    'Authorization': 'Basic Z2xwaTpnbHBp',
+        #    'App-Token': 'UY8fF4dOGUwFgRyTTHsHJQTvudH3JXZiv5vvtAQL',
+        #}   
+
+        #response = requests.get('http://192.168.0.115/glpi/apirest.php/initSession', headers=headers)
+        #print(response.text)
+        # Configurações do GLPI
+        url = 'http://192.168.0.115/glpi/apirest.php'
+        app_token = 'N1FxlVlghLniYHqGbvkYd126i67q4Z3pr3MzkbsH'
+        user_token = 'fCu0dGVGjcXpjuWuVvJQhaTKpsahTuP2T8zaQmWJ'
+
+        # Criar um novo ticket
+        def criar_ticket(titulo, descricao,eventName, potentialAction, idevento, data_real):
+            headers = {'Content-Type': 'application/json'}
+            data = {
+                'input': {
+                    'name': titulo,
+                    'content': eventName  + ' ' + potentialAction,
+                    'urgency': 3,  # Urgência do ticket (valores: 1-5)
+                    'itilcategories_id': 2  # ID da categoria do ticket
+                }
+            }
+            params = {
+                'app_token': app_token,
+                #'user_token': user_token,
+                'session_token': 'sfqlu2lqg5mmdo69456d6bh58s'
+            }       
+
+            response = requests.post(url + '/Ticket', headers=headers, params=params, data=json.dumps(data))
+            #print(response.text)
+            response_final = json.loads(response.text)
+            ticket = response_final['id']
+            print("O número do Ticket criado é: " + str(ticket))
+            #
+            connection = pymysql.connect(host='192.168.0.115', user='zabbix', password='123456', db='zabbix', cursorclass=pymysql.cursors.DictCursor)
+            sms = ''
+            whatsapp = ''
+            #data_e_hora_atuais = datetime.now()
+            #fuso_horario = timezone('America/Sao_Paulo')
+            #data_e_hora_sao_paulo = data_e_hora_atuais.astimezone(fuso_horario)
+            #data = data_e_hora_sao_paulo.strftime('%Y-%m-%d %H:%M:%S')
+            #data = '2021-09-17'
+            try:
+                with connection.cursor() as cursor:
+                    sql = "INSERT INTO `tickets` (`solicitacao`, `idevento`, `sms`, `whatsapp`, `data`) VALUES (%s, %s, %s, %s, %s) "
+                    cursor.execute(sql, (ticket, idevento, sms, whatsapp, data_real))
+                    connection.commit()
+            finally:
+                connection.close()
+                # Exemplo de uso
+                #titulo = hostname
+                #descricao = 'Host com problemas'
+                #
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Session-Token': 'sfqlu2lqg5mmdo69456d6bh58s',
+                    'App-Token': 'N1FxlVlghLniYHqGbvkYd126i67q4Z3pr3MzkbsH',
+                            }
+
+                json_data = {'input': {'tickets_id': str(ticket),'is_private': '1','requesttypes_id': '6','content': 'O host: ' + hostname + ' ,o ticket foi criado via API dp Glpi.\n\n' + 'URL do Zabbix: ' + potentialAction,'add_close': '1','_close': '1',},
+                    }
+
+                response = requests.post('http://192.168.0.115/glpi/apirest.php/Ticket/8/TicketFollowup/', headers=headers, json=json_data)
+                print(response.text)
+                #Zabbix
+                r = requests.post('http://192.168.0.114/api_jsonrpc.php', verify=False,
+                data=json.dumps({ "jsonrpc": "2.0", "method": "event.acknowledge", "params": { "eventids": str(idevento), "action": "4", "message": "Chamado " + str(ticket) + " registrado no Glpi." }, "auth": "44172e0f11703aa4d4be4a282e46ced8edfe7ae6ce2e645231ed9138140b0c74", "id": "1" }),
+                headers={'Accept': 'application/json', 'Content-Type': 'application/json-rpc'})
+                print(r.text)
+        criar_ticket(titulo, descricao, eventName, potentialAction, idevento, data_real)
+        return "1"
+    elif response['sections'][0]['facts'][0]['name'] == 'Recovery time':
+        print("Evento de Recovery")
+        hostname = response['sections'][0]['activitySubtitle']
+        iphost = response['sections'][0]['ipHost']
+        eventName = response['sections'][0]['facts'][0]['name']
+        #telefone = response['sections'][0]['facts'][0]['telefone']
+        idevento = response['sections'][0]['facts'][0]['idevento']
+        data2 = response['sections'][0]['facts'][0]['value']
+        severidade = response['sections'][0]['facts'][1]['value']
+        potentialAction = response['potentialAction'][0]['targets'][0]['uri']
+        # Establish a connection to the MySQL database
+        connection = pymysql.connect(
+            host='192.168.0.115',  # Replace with your host
+            user='zabbix',  # Replace with your username
+            password='123456',  # Replace with your password
+            database='zabbix'  # Replace with your database name
+        )   
+        
+        try:
+            # Create a cursor object to execute SQL queries
+            cursor = connection.cursor()
+
+            # Write your SELECT query
+            select_query = "SELECT data, solicitacao FROM tickets where idevento = %s"
+            # Specify the value of the variable
+
+            # Execute the SELECT query
+            cursor.execute(select_query, (idevento,))
+
+            # Fetch all the rows returned by the query
+            rows = cursor.fetchall()
+
+            # Process the fetched rows
+            for row in rows:
+                # Access the column values by index or name
+                column_value = row[0]  # Replace 0 with the index or name of the column
+                ticket = row[1]
+
+                # Perform further processing as needed
+                #print(column_value)
+                #print(ticket)
+
+        finally:
+            # Close the cursor and the connection
+            cursor.close()
+            connection.close()
+            data_string1 = str(data2)
+            data_string2 = str(column_value)
+            formato = "%H:%M:%S %Y.%m.%d"
+
+            data1 = datetime.strptime(data_string1, formato)
+            data2 = datetime.strptime(data_string2, formato)
+            #print(data1)
+            #print(data2)
+            # Calcule a diferença entre as duas datas
+            diferenca = data1 - data2
+            print("A diferença é de: " + str(diferenca))
+            # Verifique se a diferença é menor que 30 minutos (timedelta em minutos)
+            if diferenca < timedelta(minutes=30):
+                print("A diferença é menor que 30 minutos.")
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Session-Token': 'sfqlu2lqg5mmdo69456d6bh58s',
+                    'App-Token': 'N1FxlVlghLniYHqGbvkYd126i67q4Z3pr3MzkbsH',
+                }      
+
+                json_data = {
+                    "input":{
+                    "itemtype": "Ticket",
+                    "content":"O host: " + hostname + " normalizou antes de 30 minutos e o ticket foi finalizado via API dp Glpi.\n\n" +"URL do Zabbix: " + potentialAction,
+                    "status" : 6
+                    }
+                }
+
+                response = requests.put('http://192.168.0.115/glpi/apirest.php/Ticket/'+str(ticket)+'/', headers=headers, json=json_data)
+                print(response.text)
+            else:
+                print("A diferença é igual ou maior que 30 minutos.")
+                headers = {
+                            'Content-Type': 'application/json',
+                            'Session-Token': 'sfqlu2lqg5mmdo69456d6bh58s',
+                            'App-Token': 'N1FxlVlghLniYHqGbvkYd126i67q4Z3pr3MzkbsH',
+                                    }
+
+                json_data = {
+                            'input': {'tickets_id': str(ticket), 'is_private': '1', 'requesttypes_id': '6', 'content': 'Incidente com tempo acima de 30 mimutos. Não finalizar pela API do Glpi', 'add_close': '1', '_close': '1',},
+                            }
+
+                response = requests.post('http://192.168.0.115/glpi/apirest.php/Ticket/'+str(ticket)+')/TicketFollowup/', headers=headers, json=json_data)
+                print(response.text)
+        return "1"
+
+    else:
+        print("Outro tipo de evento")
+        return "1"
+
+# Execução do aplicativo
+if __name__ == "__main__":
+    from waitress import serve
+    ## Modo producao
+    #serve(app, host="0.0.0.0", port=5000)
+    ## Modo debug
+    app.run(host='0.0.0.0', port=5000, debug=True)
