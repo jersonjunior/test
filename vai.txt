@@ -1,1 +1,27 @@
-rhnreg_ks --serverUrl=http://svlp-spacewk-02.stj.gov.br/XMLRPC --sslCACert=/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT --activationkey=1-ol8 --force
+import requests
+import json
+
+base_url = "https://cmsti.stj.jus.br/"
+auth_token = "YOUR_AUTH_TOKEN"
+
+contract_id = "2"
+activity_id = "174"
+
+ticket_description = "MENSAGEM PARA ABERTURA DO CHAMADO"
+ticket_title = "TITULO DO CHAMADO"
+
+headers = {"Authorization": f"Bearer {auth_token}", "Content-Type": "application/json"}
+
+body = {
+    "requesterId": "2",
+    "activityId": activity_id,
+    "contractId": contract_id,
+    "title": ticket_title,
+    "description": ticket_description,
+}
+
+response = requests.post(f"{base_url}/citsmart/webmvc/servicerequestincident/create", headers=headers, json=body)
+
+ticket_id = response.json()["idSolicitacaoServico"]
+
+print(f"Ticket ID: {ticket_id}")
