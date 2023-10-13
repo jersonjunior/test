@@ -1,1 +1,3 @@
+curl http://svlp-spacewk-02.stj.gov.br/pub/RHN-ORG-TRUSTED-SSL-CERT -o /usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT
+#
 rhnreg_ks --serverUrl=http://svlp-spacewk-02.stj.gov.br/XMLRPC --sslCACert=/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT --activationkey=1-ol8 --force
