@@ -2,26 +2,18 @@ import requests
 import json
 
 base_url = "https://cmsti.stj.jus.br/"
-auth_token = "YOUR_AUTH_TOKEN"
 
-contract_id = "2"
-activity_id = "174"
-
-ticket_description = "MENSAGEM PARA ABERTURA DO CHAMADO"
-ticket_title = "TITULO DO CHAMADO"
-
-headers = {"Authorization": f"Bearer {auth_token}", "Content-Type": "application/json"}
+headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
 body = {
-    "requesterId": "2",
-    "activityId": activity_id,
-    "contractId": contract_id,
-    "title": ticket_title,
-    "description": ticket_description,
+    "grant_type": "password",
+    "client_id": "front-manager",
+    "username": "adm.cmsti",
+    "password": "prd_prod",
 }
 
-response = requests.post(f"{base_url}/citsmart/webmvc/servicerequestincident/create", headers=headers, json=body)
+response = requests.post(f"{base_url}/auth/realms/stj-prd/protocol/openid-connect/token", headers=headers, data=body)
 
-ticket_id = response.json()["idSolicitacaoServico"]
+auth_token = response.json()["access_token"]
 
-print(f"Ticket ID: {ticket_id}")
+print(f"Authentication token: {auth_token}")
