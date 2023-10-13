@@ -2,14 +2,18 @@ import requests
 import json
 
 base_url = "https://cmsti.stj.jus.br/"
+auth_token = "YOUR_AUTH_TOKEN"
+cit_user = "adm.cmsti"
+cit_pass = "prd_prod"
+client_id = "front-manager"
 
 headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
 body = {
     "grant_type": "password",
-    "client_id": "front-manager",
-    "username": "adm.cmsti",
-    "password": "prd_prod",
+    "client_id": client_id,
+    "username": cit_user,
+    "password": cit_pass,
 }
 
 response = requests.post(f"{base_url}/auth/realms/stj-prd/protocol/openid-connect/token", headers=headers, data=body)
@@ -17,3 +21,4 @@ response = requests.post(f"{base_url}/auth/realms/stj-prd/protocol/openid-connec
 auth_token = response.json()["access_token"]
 
 print(f"Authentication token: {auth_token}")
+
