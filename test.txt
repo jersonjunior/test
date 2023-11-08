@@ -1,2 +1,8 @@
-lines = output.decode('utf-8').splitlines()
-encoding="utf-8"
+# Converte a string JSON em bytes usando codificação UTF-8
+$utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($UserADFound)
+ 
+# Define o tipo de conteúdo para indicar que você está retornando JSON
+# com codificação UTF-8
+$response = [System.Text.Encoding]::UTF8.GetString($utf8Bytes)
+ 
+$response
