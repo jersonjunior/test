@@ -1,8 +1,17 @@
-# Converte a string JSON em bytes usando codificação UTF-8
-$utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($UserADFound)
+# Converte o objeto PSObject em JSON e, em seguida, converte em UTF-8
+$jsonContent = $data | ConvertTo-Json
+$utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonContent)
+$utf8String = [System.Text.Encoding]::UTF8.GetString($utf8Bytes)
+
+# Retorna o JSON em UTF-8
+$utf8String
+
+
+$encodedJson = $Test | ConvertTo-Json -Depth 100 | Out-String -Stream | ForEach-Object { [System.Text.Encoding]::UTF8.GetBytes($_) }
  
-# Define o tipo de conteúdo para indicar que você está retornando JSON
-# com codificação UTF-8
-$response = [System.Text.Encoding]::UTF8.GetString($utf8Bytes)
+# Concatena os bytes do JSON
+$jsonBytes = [byte[]] @()
+$encodedJson | ForEach-Object { $jsonBytes += $_ }
  
-$response
+# Retorna o JSON com a codificação UTF-8
+return [System.Text.Encoding]::UTF8.GetString($jsonBytes)
