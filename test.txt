@@ -1,1 +1,2 @@
 lines = output.decode('utf-8').splitlines()
+encoding="utf-8"
