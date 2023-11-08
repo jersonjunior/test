@@ -1,4 +1,1 @@
-# Converte o objeto PSObject em JSON e, em seguida, converte em UTF-8
-$jsonContent = $data | ConvertTo-Json
-$utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonContent)
-$utf8String = [System.Text.Encoding]::UTF8.GetString($utf8Bytes)
+[Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes(""))
