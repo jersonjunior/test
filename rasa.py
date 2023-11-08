@@ -1,1 +1,1 @@
-response = request.get_json()
+"X-CSRFToken": "<CSRF_TOKEN>"
