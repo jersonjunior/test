@@ -1,1 +1,3 @@
-return jsonify(a)
+print(response)
+cpf = str(response['cpf'])
+
