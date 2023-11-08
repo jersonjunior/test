@@ -1,1 +1,1 @@
-"X-CSRFToken": "<CSRF_TOKEN>"
+"Authorization": "Bearer <TOKEN>"
