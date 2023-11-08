@@ -1,3 +1,1 @@
-print(response)
-cpf = str(response['cpf'])
-
+response = request.get_json()
